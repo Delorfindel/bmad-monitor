@@ -242,6 +242,13 @@ File order is preserved: it is the sprint's own logical order, and it drives the
 previous/next links. A key that matches nothing, or a status value outside the BMAD vocabulary,
 produces a visible warning rather than a silent drop.
 
+### The sprint label
+
+`Sprint 6` in the header is deduced, in order, from `story_location`, then the sprint status path,
+then `scope`. The tracker itself often sits at the fixed path every BMAD skill reads
+(`{implementation_artifacts}/sprint-status.yaml`) while the stories live one level down in
+`sprint-6/` — which is why the story folder is consulted first.
+
 ### Story files
 
 For each story key, `{story_location}/{key}.md` is tried first, then
@@ -269,10 +276,21 @@ An inferred operational state is presented as additional information. It never r
 a BMAD status: the dashboard shows both, and the sprint status always wins.
 
 Markdown paths named by the sprint status, the planning source or a story are followed and
-published. Two spellings are supported, because BMAD authors use both: a Markdown link resolves
-relative to its own file, a bare or backticked path resolves from the repository root — whichever
-actually exists is kept. Backticked paths that resolve to a published page become links, with their
-text unchanged.
+published. The whole sprint status is read, not only its comments: BMAD records paths in structured
+blocks too, and those belong to the sprint's context as much as the banner above them.
+
+Authors write paths from wherever they happen to be standing, so four spellings are tried, in this
+order, and whichever actually exists is kept:
+
+1. a Markdown link, relative to the file containing it;
+2. a bare or backticked path, from the repository root;
+3. a path written from halfway up the tree (`planning-artifacts/sprint-6/x.md`), resolved against
+   the sprint's own folders and their ancestors;
+4. a **backticked** file name with no directory at all (`soundcharts-proposal.md`), resolved against
+   those same folders. Only the backticked form counts here — in plain prose it would match far too
+   much.
+
+Backticked paths that resolve to a published page become links, with their text unchanged.
 
 ### Path safety
 
@@ -347,6 +365,9 @@ No parsing happens in a Vue component: components read the typed model that the 
   (PDFs, videos) are linked to GitHub rather than copied.
 - **Reference following is one level deep** — from the sprint status, the planning source and the
   stories. Documents referenced only by another referenced document are not published.
+- **Dates are shown as the file writes them.** ISO is normalised; a `xx-xx-yyyy` date is reordered
+  only when its own digits, or another date in the same file, make the reading certain. An entirely
+  ambiguous file keeps its dates verbatim rather than guessing.
 - **`BMAD_OUTPUT_DIR` must stay inside this project**, because Vite resolves modules from the
   generated site directory.
 - **GitHub Enterprise is untested.** `GITHUB_API_URL` exists so the client can be pointed elsewhere,

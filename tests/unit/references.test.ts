@@ -4,6 +4,7 @@ import {
   extractImageReferences,
   extractMarkdownLinks,
   referenceCandidates,
+  sprintSearchDirs,
   stripFrontmatter,
   titleFromMarkdown,
   titleFromPath
@@ -37,6 +38,54 @@ describe('referenceCandidates', () => {
   })
 })
 
+describe('sprintSearchDirs', () => {
+  it('lists the sprint folders first, then their ancestors', () => {
+    expect(
+      sprintSearchDirs(
+        '_bmad-output/implementation-artifacts/sprint-6',
+        '_bmad-output/planning-artifacts/sprint-6/epics.md'
+      )
+    ).toEqual([
+      '_bmad-output/implementation-artifacts/sprint-6',
+      '_bmad-output/planning-artifacts/sprint-6',
+      '_bmad-output/implementation-artifacts',
+      '_bmad-output',
+      '_bmad-output/planning-artifacts'
+    ])
+  })
+
+  it('copes with either half being absent', () => {
+    expect(sprintSearchDirs(null, null)).toEqual([])
+    expect(sprintSearchDirs('sprint/stories', null)).toEqual(['sprint/stories', 'sprint'])
+  })
+})
+
+describe('referenceCandidates with the sprint folders', () => {
+  const dirs = sprintSearchDirs(
+    '_bmad-output/implementation-artifacts/sprint-6',
+    '_bmad-output/planning-artifacts/sprint-6/epics.md'
+  )
+  const statusFile = '_bmad-output/implementation-artifacts/sprint-status.yaml'
+
+  it('resolves a bare file name against the sprint folders', () => {
+    expect(referenceCandidates('proposal.md', statusFile, 'bare', dirs)).toContain(
+      '_bmad-output/planning-artifacts/sprint-6/proposal.md'
+    )
+  })
+
+  it('resolves a path written from halfway up the output tree', () => {
+    expect(
+      referenceCandidates('planning-artifacts/sprint-6/proposal.md', statusFile, 'bare', dirs)
+    ).toContain('_bmad-output/planning-artifacts/sprint-6/proposal.md')
+  })
+
+  it('still puts the two normal spellings first', () => {
+    const candidates = referenceCandidates('docs/x.md', statusFile, 'bare', dirs)
+    expect(candidates[0]).toBe('docs/x.md')
+    expect(candidates[1]).toBe('_bmad-output/implementation-artifacts/docs/x.md')
+  })
+})
+
 describe('extractDocumentReferences', () => {
   const text = [
     'See [the plan](../../planning-artifacts/epics.md) and',
@@ -59,6 +108,21 @@ describe('extractDocumentReferences', () => {
   it('never turns an absolute URL into a repository path', () => {
     expect(primaries.some((path) => path?.includes('example.com'))).toBe(false)
     expect(primaries.some((path) => path?.endsWith('deep/other.md'))).toBe(false)
+  })
+
+  it('reads a backticked file name that carries no directory', () => {
+    const refs = extractDocumentReferences(
+      'A proposal was sent instead (`soundcharts-proposal.md`).',
+      'sprint/sprint-status.yaml',
+      ['docs/planning']
+    )
+    expect(refs[0]?.candidates).toContain('docs/planning/soundcharts-proposal.md')
+  })
+
+  it('does not treat a bare file name in plain prose as a reference', () => {
+    expect(
+      extractDocumentReferences('see readme.md for details', 'sprint/status.yaml', ['docs'])
+    ).toEqual([])
   })
 
   it('ignores non-Markdown paths', () => {

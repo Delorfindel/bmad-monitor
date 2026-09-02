@@ -3,6 +3,7 @@ import { collectEpicTitles, extractEpicSection, type EpicPlanningSection } from 
 import {
   extractDocumentReferences,
   extractImageReferences,
+  sprintSearchDirs,
   stripFrontmatter,
   titleFromMarkdown,
   titleFromPath,
@@ -185,14 +186,31 @@ export async function collectSprint(
   })
 
   // --- Referenced documents ----------------------------------------------
+  const searchDirs = sprintSearchDirs(storyLocation, planningSource)
   const contextComments = parsed.comments.filter((comment) => comment.kind === 'context')
   const groupSources: { owner: string; groups: DocumentReferenceCandidate[] }[] = [
     ...contextComments.map((comment) => ({
       owner: `context:${comment.id}`,
-      groups: extractDocumentReferences(`${comment.title}\n${comment.body}`, config.sprintStatusPath)
+      groups: extractDocumentReferences(
+        `${comment.title}\n${comment.body}`,
+        config.sprintStatusPath,
+        searchDirs
+      )
     })),
+    // The whole sprint status, comments and YAML values alike: BMAD records
+    // paths in structured blocks too, and those are as much a part of the
+    // sprint's context as the banner above them.
+    {
+      owner: 'sprint-status',
+      groups: extractDocumentReferences(sprintStatusText, config.sprintStatusPath, searchDirs)
+    },
     ...(planningMarkdown !== null && planningSource !== null
-      ? [{ owner: 'planning', groups: extractDocumentReferences(planningMarkdown, planningSource) }]
+      ? [
+          {
+            owner: 'planning',
+            groups: extractDocumentReferences(planningMarkdown, planningSource, searchDirs)
+          }
+        ]
       : []),
     ...storyDocuments
       .filter((document) => document.markdown !== null && document.story.sourcePath !== undefined)
@@ -200,7 +218,8 @@ export async function collectSprint(
         owner: `story:${document.story.key}`,
         groups: extractDocumentReferences(
           document.markdown as string,
-          document.story.sourcePath as string
+          document.story.sourcePath as string,
+          searchDirs
         )
       }))
   ]

@@ -1,4 +1,11 @@
-import { isExternalLink, normalizeRepoPath, resolveRepoRelative, splitAnchor } from '../shared/paths.js'
+import {
+  isExternalLink,
+  joinRepoPath,
+  normalizeRepoPath,
+  repoDirname,
+  resolveRepoRelative,
+  splitAnchor
+} from '../shared/paths.js'
 
 export interface MarkdownLink {
   /** The whole `[label](target)` (or `![label](target)`) match. */
@@ -13,6 +20,8 @@ const INLINE_LINK = /(!?)\[([^\]]*)\]\(\s*<?([^)<>\s]+)>?(?:\s+"[^"]*"|\s+'[^']*
 const REFERENCE_DEFINITION = /^[ \t]{0,3}\[([^\]]+)\]:[ \t]*<?([^\s>]+)>?/gm
 /** A repository-relative path with at least one directory segment. */
 const BARE_DOC_PATH = /(?:[A-Za-z0-9._@+-]+\/)+[A-Za-z0-9._@+-]+\.md(?:#[A-Za-z0-9._-]+)?/g
+/** A backticked file name with no directory at all: `soundcharts-proposal.md`. */
+const BACKTICKED_FILENAME = /`([A-Za-z0-9._@+-]+\.md)`/g
 const ABSOLUTE_URL = /https?:\/\/\S+/g
 
 /** Extracts inline links and images, in document order. */
@@ -53,7 +62,8 @@ export interface DocumentReferenceCandidate {
 export function referenceCandidates(
   raw: string,
   fromFile: string,
-  kind: ReferenceKind
+  kind: ReferenceKind,
+  searchDirs: readonly string[] = []
 ): string[] {
   const fromRoot = normalizeRepoPath(raw)
   const fromDocument = resolveRepoRelative(fromFile, raw)
@@ -61,6 +71,10 @@ export function referenceCandidates(
   // A document naming itself is not a reference. Without this, the preferred
   // spelling is discarded and the fallback resolves to a path that cannot exist.
   if (ordered[0] === fromFile) return []
+  // Last resort: the sprint's own directories and their ancestors. This is what
+  // catches a bare file name, and a path written from halfway up the tree.
+  for (const dir of searchDirs) ordered.push(joinRepoPath(dir, raw))
+
   const seen = new Set<string>()
   const out: string[] = []
   for (const candidate of ordered) {
@@ -72,6 +86,41 @@ export function referenceCandidates(
 }
 
 /**
+ * The directories a reference may plausibly be written against, deepest first:
+ * the sprint's story and planning folders, then every ancestor of them.
+ *
+ * BMAD authors write paths from wherever they happen to be standing —
+ * `soundcharts-proposal.md` from inside the planning folder, or
+ * `planning-artifacts/sprint-6/soundcharts-proposal.md` from one level above
+ * the output root. Both are unambiguous once the sprint's own tree is known.
+ */
+export function sprintSearchDirs(
+  storyLocation: string | null,
+  planningSource: string | null
+): string[] {
+  const seeds = [storyLocation, planningSource === null ? null : repoDirname(planningSource)]
+  const dirs: string[] = []
+  const seen = new Set<string>()
+  const add = (dir: string): void => {
+    if (dir === '' || seen.has(dir)) return
+    seen.add(dir)
+    dirs.push(dir)
+  }
+  for (const seed of seeds) {
+    if (seed === null) continue
+    add(seed)
+  }
+  for (const seed of seeds) {
+    let current = seed === null ? '' : repoDirname(seed)
+    while (current !== '') {
+      add(current)
+      current = repoDirname(current)
+    }
+  }
+  return dirs
+}
+
+/**
  * Every Markdown document explicitly named by `text`, in document order.
  *
  * Both spellings are collected: Markdown links, and bare or backticked paths —
@@ -80,7 +129,8 @@ export function referenceCandidates(
  */
 export function extractDocumentReferences(
   text: string,
-  fromFile: string
+  fromFile: string,
+  searchDirs: readonly string[] = []
 ): DocumentReferenceCandidate[] {
   const found: DocumentReferenceCandidate[] = []
   const seen = new Set<string>()
@@ -88,7 +138,7 @@ export function extractDocumentReferences(
   const add = (target: string, kind: ReferenceKind): void => {
     const { path, anchor } = splitAnchor(target.trim())
     if (!path.toLowerCase().endsWith('.md')) return
-    const candidates = referenceCandidates(path, fromFile, kind)
+    const candidates = referenceCandidates(path, fromFile, kind, searchDirs)
     if (candidates.length === 0) return
     const identity = `${kind}:${candidates.join('|')}`
     if (seen.has(identity)) return
@@ -112,6 +162,12 @@ export function extractDocumentReferences(
   const withoutUrls = text.replace(ABSOLUTE_URL, ' ')
   for (const match of withoutUrls.matchAll(BARE_DOC_PATH)) {
     add(match[0], 'bare')
+  }
+
+  // A file name with no directory is only treated as a reference when it is
+  // backticked. In plain prose it would match far too much.
+  for (const match of text.matchAll(BACKTICKED_FILENAME)) {
+    add(match[1] as string, 'bare')
   }
 
   return found

@@ -205,6 +205,28 @@ describe('collectSprint degraded inputs', () => {
     expect(delta?.references[0]).toMatchObject({ path: 'docs/never-written.md', available: false })
   })
 
+  it('follows a document named only inside a structured YAML block', async () => {
+    const { result } = await collect({
+      ...FILES,
+      [STATUS_PATH]: `${STATUS}\nprovider_thread:\n  proposal_sent: 2026-08-31, docs/proposal.md\n`,
+      'docs/proposal.md': '# Proposal\n\nSent to the provider.\n'
+    })
+    expect(result.linkedDocuments.map((document) => document.path)).toContain('docs/proposal.md')
+  })
+
+  it('resolves a bare file name against the sprint own folders', async () => {
+    const { result } = await collect({
+      ...FILES,
+      [STATUS_PATH]: STATUS.replace(
+        'See `docs/blocked.md`.',
+        'A proposal was sent instead (`proposal.md`).'
+      ),
+      'docs/proposal.md': '# Proposal\n\nSent to the provider.\n'
+    })
+    // `docs` is the folder of planning_source; nothing else names the file.
+    expect(result.linkedDocuments.map((document) => document.path)).toContain('docs/proposal.md')
+  })
+
   it('caps the number of published linked documents', async () => {
     const many: Record<string, string> = { ...FILES }
     const links: string[] = []

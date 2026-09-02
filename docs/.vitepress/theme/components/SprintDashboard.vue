@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatTimestamp, percent } from '../format'
+import { detectDateOrder, formatTimestamp, percent } from '../format'
 import { useSprint } from '../useSprint'
 import EpicSection from './EpicSection.vue'
 import ProgressBar from './ProgressBar.vue'
@@ -10,7 +10,13 @@ import WarningPanel from './WarningPanel.vue'
 const { sprint } = useSprint()
 
 const done = computed(() => percent(sprint.value.progress.done, sprint.value.totalStories))
-const lastUpdated = computed(() => formatTimestamp(sprint.value.lastUpdated))
+// One unambiguous date in the file settles how to read the others.
+const dateOrder = computed(() =>
+  detectDateOrder(sprint.value.generated, sprint.value.lastUpdated)
+)
+const lastUpdated = computed(() =>
+  formatTimestamp(sprint.value.lastUpdated, dateOrder.value)
+)
 const linked = computed(() => sprint.value.references.filter((reference) => reference.route))
 </script>
 
