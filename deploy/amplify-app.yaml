@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+# One BMAD Sprint Monitor deployment on AWS Amplify Hosting.
+#
+# Amplify has no equivalent of Vercel's Deploy Button: the "Deploy to Amplify"
+# one-click flow was withdrawn, and nothing in a repository can make the Amplify
+# console ask for variables. CloudFormation can. Launching this stack opens a
+# console form with a labelled field per variable, the tokens masked, and the
+# repository name validated before anything is created.
+#
+#   Console -> CloudFormation -> Create stack -> Upload a template file
+#
+# It creates the Amplify app and its branch, wired to this repository, with the
+# environment this deployment needs. The build itself comes from amplify.yml.
+
+Description: >-
+  BMAD Sprint Monitor - a static portal for one BMAD sprint of one project,
+  built from a private GitHub repository at deploy time.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: The project this deployment monitors
+        Parameters:
+          - MonitoredRepository
+          - MonitoredRef
+          - SprintStatusPath
+          - MonitoredRepositoryToken
+      - Label:
+          default: Where the portal itself comes from
+        Parameters:
+          - PortalRepositoryUrl
+          - PortalBranch
+          - AmplifyAccessToken
+      - Label:
+          default: Who may read the deployed site
+        Parameters:
+          - BasicAuthUsername
+          - BasicAuthPassword
+    ParameterLabels:
+      MonitoredRepository:
+        default: Monitored repository (owner/name)
+      MonitoredRef:
+        default: Branch, tag or commit to read
+      SprintStatusPath:
+        default: Path to sprint-status.yaml
+      MonitoredRepositoryToken:
+        default: Read-only token for the monitored repository
+      PortalRepositoryUrl:
+        default: Portal repository URL
+      PortalBranch:
+        default: Portal branch to deploy
+      AmplifyAccessToken:
+        default: GitHub token for Amplify
+      BasicAuthUsername:
+        default: Username (leave empty for a public site)
+      BasicAuthPassword:
+        default: Password
+
+Parameters:
+  MonitoredRepository:
+    Type: String
+    Description: >-
+      The repository whose BMAD artefacts this portal publishes, as owner/name.
+      Read at build time only.
+    AllowedPattern: '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$'
+    ConstraintDescription: Must look like owner/repository.
+
+  MonitoredRef:
+    Type: String
+    Description: >-
+      Branch, tag or commit SHA to read. Resolved to a commit SHA once per
+      build, so one build never mixes two commits.
+    Default: main
+    MinLength: 1
+
+  SprintStatusPath:
+    Type: String
+    Description: >-
+      Repository-relative path of the sprint-status.yaml that defines this
+      deployment's scope. It is the only authority on what gets published.
+    Default: _bmad-output/implementation-artifacts/sprint-status.yaml
+    AllowedPattern: '^[^/][^\s]*\.(yaml|yml)$'
+    ConstraintDescription: Must be a repository-relative path ending in .yaml or .yml.
+
+  MonitoredRepositoryToken:
+    Type: String
+    Description: >-
+      Fine-grained GitHub token with ONLY "Contents: Read-only" on the monitored
+      repository, and that repository's owner as its resource owner. Used by the
+      build; never shipped to the browser.
+    NoEcho: true
+    MinLength: 1
+
+  PortalRepositoryUrl:
+    Type: String
+    Description: The BMAD Sprint Monitor repository Amplify builds from.
+    Default: https://github.com/Delorfindel/bmad-monitor
+    AllowedPattern: '^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'
+
+  PortalBranch:
+    Type: String
+    Description: Branch of the portal repository to deploy.
+    Default: main
+    MinLength: 1
+
+  AmplifyAccessToken:
+    Type: String
+    Description: >-
+      GitHub token letting Amplify clone the portal repository and register its
+      webhook. This is a different token from the one above, and it only needs
+      access to the portal repository.
+    NoEcho: true
+    MinLength: 1
+
+  BasicAuthUsername:
+    Type: String
+    Description: >-
+      Private BMAD artefacts become static content of this deployment. Set a
+      username and password to put the site behind basic auth, or leave both
+      empty to publish it openly.
+    Default: ''
+
+  BasicAuthPassword:
+    Type: String
+    Default: ''
+    NoEcho: true
+
+Conditions:
+  UseBasicAuth: !Not [!Equals [!Ref BasicAuthUsername, '']]
+
+Resources:
+  Portal:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: !Sub 'bmad-sprint-monitor-${AWS::StackName}'
+      Description: !Sub 'BMAD sprint portal for ${MonitoredRepository}'
+      Repository: !Ref PortalRepositoryUrl
+      AccessToken: !Ref AmplifyAccessToken
+      # Static output: the whole site is generated at build time.
+      Platform: WEB
+      EnableBranchAutoDeletion: true
+      EnvironmentVariables:
+        - Name: BMAD_REPOSITORY
+          Value: !Ref MonitoredRepository
+        - Name: BMAD_REF
+          Value: !Ref MonitoredRef
+        - Name: BMAD_SPRINT_STATUS
+          Value: !Ref SprintStatusPath
+        - Name: GITHUB_TOKEN
+          Value: !Ref MonitoredRepositoryToken
+        # Amplify does not serve /epics/41 from epics/41.html, so the routes
+        # carry the extension instead.
+        - Name: BMAD_CLEAN_URLS
+          Value: 'false'
+      BasicAuthConfig: !If
+        - UseBasicAuth
+        - EnableBasicAuth: true
+          Username: !Ref BasicAuthUsername
+          Password: !Ref BasicAuthPassword
+        - !Ref AWS::NoValue
+
+  PortalBranchResource:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt Portal.AppId
+      BranchName: !Ref PortalBranch
+      Stage: PRODUCTION
+      EnableAutoBuild: true
+
+Outputs:
+  SiteUrl:
+    Description: The deployed portal.
+    Value: !Sub 'https://${PortalBranch}.${Portal.DefaultDomain}'
+  AmplifyAppId:
+    Description: Amplify app id, for the console and for the AWS CLI.
+    Value: !GetAtt Portal.AppId
+  RebuildHint:
+    Description: >-
+      A push to the monitored repository does not rebuild this portal. Create an
+      incoming webhook in the Amplify console and call it from that repository.
+    Value: !Sub 'https://console.aws.amazon.com/amplify/apps/${Portal.AppId}/settings/webhooks'

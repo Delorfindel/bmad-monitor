@@ -72,6 +72,14 @@ Two things worth knowing:
 Environment variables go in the Amplify console under App settings → Environment variables. The
 build command and output directory come from `amplify.yml`, so leave them alone in the console.
 
+Amplify has no equivalent of Vercel's Deploy Button — its one-click flow was withdrawn, and nothing
+in a repository can make the console ask for variables. `deploy/amplify-app.yaml` does it with
+CloudFormation instead: **Create stack → Upload a template file** opens a form with a labelled field
+per variable, the tokens masked, and the repository name validated before anything is created. It
+creates the app and its branch already wired to the monitored project. Note it needs two separate
+GitHub tokens — one that lets Amplify clone this repository, and the read-only one the build uses on
+the monitored repository.
+
 ## Configuration
 
 | Variable | Default | |
