@@ -58,33 +58,14 @@ Two things worth knowing:
   published story. Turn on Vercel's Deployment Protection before sharing it — this portal has no
   login of its own.
 
-### AWS Amplify, S3, or any other static host
+### Other static hosts
 
-`amplify.yml` is in the repo; Amplify picks it up on its own. Three things differ from Vercel:
+The site is plain static output, so any host will serve it. Two things to set:
 
-- **Set `BMAD_CLEAN_URLS=false`.** Vercel serves `/epics/41` from `epics/41.html`; most hosts do not,
-  and every internal link would 404 on first load. With this off, the routes carry the extension and
-  the site works on a host with no rewrite rules at all.
-- **Pin Node to 20 or later.** `amplify.yml` does it in `preBuild`; other hosts have their own knob.
-- **Use the host's own equivalents** for the rest: Amplify's *Incoming webhooks* replace Vercel's
-  Deploy Hooks, and its *Access control* (basic auth per branch) replaces Deployment Protection.
-
-Environment variables go in the Amplify console under App settings → Environment variables. The
-build command and output directory come from `amplify.yml`, so leave them alone in the console.
-
-Amplify has no equivalent of Vercel's Deploy Button — its one-click flow was withdrawn, and nothing
-in a repository can make the console ask for variables. `deploy/amplify-app.yaml` does it with
-CloudFormation instead: **Create stack → Upload a template file** opens a form with a labelled field
-per variable, the tokens masked, and the repository name validated before anything is created. It
-creates the app and its branch already wired to the monitored project. Note it needs two separate
-GitHub tokens — a classic one with `admin:repo_hook` for Amplify's webhook on this repository, and
-the fine-grained read-only one the build uses on the monitored repository.
-
-Either way — console or CloudFormation — **install the Amplify GitHub App first**, on the account
-that owns *this* repository, in the region you deploy to. There is one app per region
-(`https://github.com/apps/aws-amplify-<region>/installations/new`), and if the repository is not in
-its list, connecting fails with `Resource not accessible by integration` before any variable is even
-read.
+- **`BMAD_CLEAN_URLS=false`.** Vercel serves `/epics/41` from `epics/41.html`; most hosts do not, and
+  every internal link would 404 on first load. With this off, the routes carry the extension and the
+  site works on a host with no rewrite rules at all.
+- **Node 20 or later**, and `npm ci && npm run build` producing `docs/.vitepress/dist`.
 
 ## Configuration
 
