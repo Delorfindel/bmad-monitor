@@ -77,8 +77,14 @@ in a repository can make the console ask for variables. `deploy/amplify-app.yaml
 CloudFormation instead: **Create stack → Upload a template file** opens a form with a labelled field
 per variable, the tokens masked, and the repository name validated before anything is created. It
 creates the app and its branch already wired to the monitored project. Note it needs two separate
-GitHub tokens — one that lets Amplify clone this repository, and the read-only one the build uses on
-the monitored repository.
+GitHub tokens — a classic one with `admin:repo_hook` for Amplify's webhook on this repository, and
+the fine-grained read-only one the build uses on the monitored repository.
+
+Either way — console or CloudFormation — **install the Amplify GitHub App first**, on the account
+that owns *this* repository, in the region you deploy to. There is one app per region
+(`https://github.com/apps/aws-amplify-<region>/installations/new`), and if the repository is not in
+its list, connecting fails with `Resource not accessible by integration` before any variable is even
+read.
 
 ## Configuration
 

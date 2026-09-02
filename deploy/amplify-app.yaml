@@ -12,6 +12,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 #
 # It creates the Amplify app and its branch, wired to this repository, with the
 # environment this deployment needs. The build itself comes from amplify.yml.
+#
+# BEFORE creating the stack, install the Amplify GitHub App on the account that
+# owns the portal repository, in the region you are deploying to. There is one
+# app per region, and Amplify cannot register its webhook without it:
+#
+#   https://github.com/apps/aws-amplify-REGION/installations/new
 
 Description: >-
   BMAD Sprint Monitor - a static portal for one BMAD sprint of one project,
@@ -108,9 +114,13 @@ Parameters:
   AmplifyAccessToken:
     Type: String
     Description: >-
-      GitHub token letting Amplify clone the portal repository and register its
-      webhook. This is a different token from the one above, and it only needs
-      access to the portal repository.
+      Classic GitHub token with the admin:repo_hook scope, used once to register
+      Amplify's webhook on the portal repository. This is NOT the fine-grained
+      token above. It only works once the Amplify GitHub App is installed on the
+      account that owns the portal repository, in this same AWS region:
+      https://github.com/apps/aws-amplify-REGION/installations/new
+      Without that installation, stack creation fails with
+      "Resource not accessible by integration".
     NoEcho: true
     MinLength: 1
 
