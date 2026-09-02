@@ -84,7 +84,14 @@ export default withMermaid(
       // Rollup handle the interop; the dev server needs them pre-bundled, or
       // they are served raw and their default export goes missing.
       optimizeDeps: { include: ['mermaid', 'fastdom', 'dayjs', 'cytoscape'] },
-      ssr: { noExternal: ['mermaid'] }
+      ssr: { noExternal: ['mermaid'] },
+      build: {
+        // The only chunks over Rollup's 500 kB default are Mermaid's own
+        // per-diagram bundles (cytoscape, katex, the architecture and sequence
+        // renderers). Mermaid loads each on demand, so none of them is in the
+        // critical path and the default warning is noise here.
+        chunkSizeWarningLimit: 1000
+      }
     },
     // The plugin forces the `dark` theme when VitePress is dark; this is the
     // light-mode counterpart.

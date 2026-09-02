@@ -142,11 +142,10 @@ describe('collectSprint', () => {
     expect(result.data.references[0]?.route).toBe('/context/blocked')
   })
 
-  it('surfaces sprint context and hides generic BMAD definitions', async () => {
+  it('follows a document named in a comment without modelling the comment', async () => {
     const { result } = await collect()
-    expect(result.data.contextBlocks).toHaveLength(1)
-    expect(result.data.contextBlocks[0]?.tone).toBe('blocked')
-    expect(result.data.contextBlocks[0]?.references[0]?.route).toBe('/context/blocked')
+    expect(result.linkedDocuments.map((document) => document.path)).toContain('docs/blocked.md')
+    expect(JSON.stringify(result.data)).not.toContain('PROVIDER BLOCKED')
   })
 
   it('records the snapshot without ever exposing a credential', async () => {

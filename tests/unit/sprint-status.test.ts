@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  deduceSprintLabel,
-  extractCommentBlocks,
-  parseSprintStatus,
-  SprintStatusError
-} from '../../src/bmad/sprint-status'
+import { deduceSprintLabel, parseSprintStatus, SprintStatusError } from '../../src/bmad/sprint-status'
 
 const PATH = '_bmad-output/implementation-artifacts/sprint-6/sprint-status.yaml'
 
@@ -85,28 +80,21 @@ describe('parseSprintStatus', () => {
     ])
   })
 
-  it('keeps sprint context and drops generic BMAD definitions', () => {
-    const context = parsed.comments.filter((comment) => comment.kind === 'context')
-    expect(context).toHaveLength(1)
-    expect(context[0]?.title).toBe('WORK IS PAUSED — 2026-08-27')
-    expect(context[0]?.tone).toBe('paused')
-    expect(context[0]?.body).toContain('on hold pending a vendor answer')
-
-    const definitions = parsed.comments.filter((comment) => comment.kind === 'definitions')
-    expect(definitions.map((comment) => comment.title)).toEqual([
-      'STATUS DEFINITIONS:',
-      'WORKFLOW NOTES:'
+  it('does not interpret the free-form prose around the attributes', () => {
+    // The pause banner, the status definitions and the workflow notes are all
+    // comments. None of them is a BMAD attribute, so none of them is modelled.
+    expect(Object.keys(parsed)).toEqual([
+      'project',
+      'projectKey',
+      'trackingSystem',
+      'generated',
+      'lastUpdated',
+      'scope',
+      'storyLocation',
+      'planningSource',
+      'entries',
+      'warnings'
     ])
-  })
-
-  it('does not split a banner at its closing rule', () => {
-    const context = parsed.comments.filter((comment) => comment.kind === 'context')
-    expect(context[0]?.body).toContain('pause-2026-08-27.md')
-  })
-
-  it('reads the header comments as metadata, not as sprint context', () => {
-    const metadata = parsed.comments.filter((comment) => comment.kind === 'metadata')
-    expect(metadata.length).toBeGreaterThan(0)
   })
 
   it('reports no warnings for a well-formed file', () => {
@@ -158,37 +146,6 @@ describe('parseSprintStatus failures', () => {
     )
     expect(parsed.project).toBe('FromComment')
     expect(parsed.storyLocation).toBe('docs/sprint-3')
-  })
-})
-
-describe('extractCommentBlocks', () => {
-  it('treats a definitions-shaped list without a known title as generic', () => {
-    const blocks = extractCommentBlocks(
-      [
-        '# Legende interne',
-        '# ================',
-        '#   - backlog: pas commence',
-        '#   - review: pret a relire',
-        '#   - done: termine',
-        '',
-        'development_status: {}'
-      ].join('\n')
-    )
-    expect(blocks[0]?.kind).toBe('definitions')
-  })
-
-  it('detects a blocked tone', () => {
-    const blocks = extractCommentBlocks(
-      ['# SUPPLIER BLOCKED', '# ================', '# The provider has not answered.'].join('\n')
-    )
-    expect(blocks[0]?.tone).toBe('blocked')
-  })
-
-  it('uses a generic title when an untitled note opens with a long sentence', () => {
-    const long = 'a'.repeat(90)
-    const blocks = extractCommentBlocks(`# ${long}\n# more\n`)
-    expect(blocks[0]?.title).toBe('Sprint note')
-    expect(blocks[0]?.body).toContain(long)
   })
 })
 

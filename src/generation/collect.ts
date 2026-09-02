@@ -22,7 +22,6 @@ import {
   emptyStatusCounts,
   type DashboardWarning,
   type DocumentReference,
-  type SprintContextBlock,
   type SprintDashboardData,
   type SprintEpic,
   type SprintRetrospective,
@@ -187,19 +186,9 @@ export async function collectSprint(
 
   // --- Referenced documents ----------------------------------------------
   const searchDirs = sprintSearchDirs(storyLocation, planningSource)
-  const contextComments = parsed.comments.filter((comment) => comment.kind === 'context')
   const groupSources: { owner: string; groups: DocumentReferenceCandidate[] }[] = [
-    ...contextComments.map((comment) => ({
-      owner: `context:${comment.id}`,
-      groups: extractDocumentReferences(
-        `${comment.title}\n${comment.body}`,
-        config.sprintStatusPath,
-        searchDirs
-      )
-    })),
-    // The whole sprint status, comments and YAML values alike: BMAD records
-    // paths in structured blocks too, and those are as much a part of the
-    // sprint's context as the banner above them.
+    // The sprint status is read whole. Its comments and its structured blocks
+    // are not interpreted -- only the Markdown paths they name are followed.
     {
       owner: 'sprint-status',
       groups: extractDocumentReferences(sprintStatusText, config.sprintStatusPath, searchDirs)
@@ -355,14 +344,6 @@ export async function collectSprint(
     document.story.references = referencesFor(groupsByOwner.get(`story:${document.story.key}`) ?? [])
   }
 
-  const contextBlocks: SprintContextBlock[] = contextComments.map((comment) => ({
-    id: comment.id,
-    title: comment.title,
-    body: comment.body,
-    tone: comment.tone,
-    references: referencesFor(groupsByOwner.get(`context:${comment.id}`) ?? [])
-  }))
-
   const progress = emptyStatusCounts()
   for (const epic of epics) {
     addCounts(progress, epic.progress)
@@ -384,7 +365,6 @@ export async function collectSprint(
     epics,
     progress,
     totalStories: stories.length,
-    contextBlocks,
     references: linkedDocuments.map((document) => referenceOf(document.path)),
     warnings
   }

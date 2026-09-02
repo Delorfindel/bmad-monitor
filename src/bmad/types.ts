@@ -92,17 +92,6 @@ export interface SprintEpic {
   retrospective?: SprintRetrospective
 }
 
-export type ContextTone = 'paused' | 'blocked' | 'note'
-
-export interface SprintContextBlock {
-  id: string
-  title: string
-  /** Markdown body, already unwrapped from the YAML comment prefixes. */
-  body: string
-  tone: ContextTone
-  references: DocumentReference[]
-}
-
 export interface SprintSnapshot {
   repository: string
   ref: string
@@ -130,7 +119,6 @@ export interface SprintDashboardData {
   epics: SprintEpic[]
   progress: StatusCounts
   totalStories: number
-  contextBlocks: SprintContextBlock[]
   references: DocumentReference[]
   warnings: DashboardWarning[]
 }

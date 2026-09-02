@@ -4,7 +4,6 @@ import { detectDateOrder, formatTimestamp, percent } from '../format'
 import { useSprint } from '../useSprint'
 import EpicSection from './EpicSection.vue'
 import ProgressBar from './ProgressBar.vue'
-import SprintContext from './SprintContext.vue'
 import WarningPanel from './WarningPanel.vue'
 
 const { sprint } = useSprint()
@@ -56,8 +55,6 @@ const linked = computed(() => sprint.value.references.filter((reference) => refe
         </div>
       </dl>
     </header>
-
-    <SprintContext :blocks="sprint.contextBlocks" />
 
     <section class="bm-summary" aria-label="Sprint progress">
       <div class="bm-summary-figure">

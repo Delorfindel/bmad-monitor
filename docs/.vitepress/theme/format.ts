@@ -62,34 +62,3 @@ function join(
 export function percent(part: number, total: number): number {
   return total === 0 ? 0 : Math.round((part / total) * 100)
 }
-
-/** Splits a plain-text block into paragraphs and inline code runs. */
-export interface TextToken {
-  code: boolean
-  text: string
-}
-
-export function tokenizeParagraph(text: string): TextToken[] {
-  const tokens: TextToken[] = []
-  let index = 0
-  for (const match of text.matchAll(/`([^`]+)`/g)) {
-    const start = match.index ?? 0
-    if (start > index) tokens.push({ code: false, text: text.slice(index, start) })
-    tokens.push({ code: true, text: match[1] as string })
-    index = start + match[0].length
-  }
-  if (index < text.length) tokens.push({ code: false, text: text.slice(index) })
-  return tokens
-}
-
-/**
- * Comment blocks are hard-wrapped in the YAML file. Blank lines are the real
- * paragraph breaks; the wrapping newlines inside one are just the file's line
- * width and must not survive into a fluid layout.
- */
-export function toParagraphs(body: string): string[] {
-  return body
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim())
-    .filter((paragraph) => paragraph !== '')
-}

@@ -58,7 +58,6 @@ const data: SprintDashboardData = {
   ],
   progress: emptyStatusCounts(),
   totalStories: 2,
-  contextBlocks: [],
   references: [
     { path: 'docs/blocked.md', title: 'Blocked', route: '/context/blocked', available: true }
   ],

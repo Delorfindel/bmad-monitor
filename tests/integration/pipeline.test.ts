@@ -65,10 +65,13 @@ describe('fixture → sync → model → pages → VitePress build', () => {
     })
   })
 
-  it('surfaces the sprint pause and hides the generic BMAD definitions', () => {
-    expect(collected.data.contextBlocks).toHaveLength(1)
-    expect(collected.data.contextBlocks[0]?.tone).toBe('paused')
-    expect(collected.data.contextBlocks[0]?.title).toContain('TILE INGEST IS PAUSED')
+  it('follows the documents the sprint names, and models nothing else', () => {
+    expect(collected.linkedDocuments.map((document) => document.path)).toEqual([
+      '_bmad-output/planning-artifacts/tile-ingest-pause-2026-03-04.md',
+      '_bmad-output/planning-artifacts/import-identity-decision.md'
+    ])
+    // The pause banner in the YAML comments is prose, not a BMAD attribute.
+    expect(JSON.stringify(collected.data)).not.toContain('TILE INGEST IS PAUSED')
   })
 
   it('reports the story with no Markdown file without failing the build', () => {
@@ -96,7 +99,6 @@ describe('fixture → sync → model → pages → VitePress build', () => {
   it('renders the dashboard into the HTML rather than fetching at runtime', async () => {
     const html = await fs.readFile(path.join(distDir, 'index.html'), 'utf8')
     expect(html).toContain('Atlas Portal')
-    expect(html).toContain('TILE INGEST IS PAUSED')
     expect(html).toContain('Trusted Vector Tile Delivery')
     // Every status is written out as a word, never carried by colour alone.
     for (const label of ['Done', 'In review', 'In progress', 'Ready for dev', 'Backlog']) {

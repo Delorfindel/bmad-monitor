@@ -1,6 +1,5 @@
 import { parseDocument, isMap, isScalar, type Document } from 'yaml'
-import type { ContextTone, DashboardWarning } from './types.js'
-import { slugify, uniqueSlug } from '../shared/text.js'
+import type { DashboardWarning } from './types.js'
 import { classifyKey, type ClassifiedKey } from './status.js'
 
 /** A `development_status` entry, in file order. */
@@ -8,17 +7,6 @@ export interface SprintStatusEntry {
   key: string
   rawStatus: string
   classification: ClassifiedKey
-}
-
-export type CommentBlockKind = 'context' | 'definitions' | 'metadata'
-
-export interface SprintStatusComment {
-  id: string
-  title: string
-  /** Comment prefixes removed, ASCII rules dropped, indentation preserved. */
-  body: string
-  kind: CommentBlockKind
-  tone: ContextTone
 }
 
 export interface ParsedSprintStatus {
@@ -31,7 +19,6 @@ export interface ParsedSprintStatus {
   storyLocation?: string
   planningSource?: string
   entries: SprintStatusEntry[]
-  comments: SprintStatusComment[]
   warnings: DashboardWarning[]
 }
 
@@ -42,7 +29,12 @@ export class SprintStatusError extends Error {
   }
 }
 
-const METADATA_KEYS = [
+/**
+ * The attributes BMAD defines. Nothing outside this list is interpreted: a
+ * sprint status may carry any amount of free-form prose and project-specific
+ * blocks, and none of it means anything to this tool.
+ */
+const KNOWN_ATTRIBUTES = [
   'generated',
   'last_updated',
   'project',
@@ -50,173 +42,27 @@ const METADATA_KEYS = [
   'tracking_system',
   'story_location',
   'planning_source',
-  'scope',
-  'sprint',
-  'epic'
+  'scope'
 ] as const
 
+/** `# story_location: docs/sprint-6` — an attribute written in the header. */
+const COMMENTED_ATTRIBUTE = /^[ \t]*#[ \t]*([a-z_]+)[ \t]*:[ \t]*(.+?)[ \t]*$/
+
 /**
- * Titles that BMAD ships in every sprint-status file. They explain the tool,
- * not the sprint, and must never surface as a product-level notice.
+ * Reads the known attributes from the commented header some sprint statuses
+ * carry above the YAML. Only these keys are looked for, and only the first
+ * occurrence of each counts; everything else in the comments is ignored.
  */
-const GENERIC_TITLES = [
-  /^status\s+definitions?\b/i,
-  /^workflow\s+notes?\b/i,
-  /^definitions?\b/i,
-  /^legend\b/i,
-  /^conventions?\b/i,
-  /^how\s+to\s+use\b/i,
-  /^(epic|story|retrospective)\s+status\b/i,
-  /^notes?\s+on\s+status\b/i
-]
-
-/** `- backlog: Story is specified but ...` — the shape of a definitions list. */
-const DEFINITION_LINE =
-  /^[-*\s]*(backlog|ready-for-dev|ready_for_dev|in-progress|in_progress|review|done|optional|drafted|approved|blocked)\s*:/i
-
-const PAUSED_SIGNALS =
-  /(\bpaused\b|\bpause\b|\bon hold\b|\bhalted\b|\bsuspended\b|\bfrozen\b|\ben pause\b|\bsuspendu|\bgel[ée]|⏸|⏯)/i
-const BLOCKED_SIGNALS = /(\bblocked\b|\bblocker\b|\bblocking\b|\bbloqu[ée]|\bblocage\b|🚫|⛔)/i
-/** `====`, `----`, `****` — ASCII rules that would become Markdown headings. */
-const RULE_LINE = /^[\s]*[=\-*_~#]{3,}[\s]*$/
-
-interface CommentRegionLine {
-  /** Comment text with the `#` and at most one following space removed. */
-  text: string
-}
-
-/** Groups consecutive `#` lines, stopping at the first line of real YAML. */
-function collectCommentRegions(text: string): CommentRegionLine[][] {
-  const regions: CommentRegionLine[][] = []
-  let current: CommentRegionLine[] = []
-  for (const rawLine of text.split(/\r?\n/)) {
-    const commentMatch = /^[ \t]*#(.*)$/.exec(rawLine)
-    if (commentMatch) {
-      const body = commentMatch[1] ?? ''
-      current.push({ text: body.startsWith(' ') ? body.slice(1) : body })
-      continue
-    }
-    if (current.length > 0) {
-      regions.push(current)
-      current = []
-    }
+function readCommentedAttributes(text: string): Map<string, string> {
+  const found = new Map<string, string>()
+  for (const line of text.split(/\r?\n/)) {
+    const match = COMMENTED_ATTRIBUTE.exec(line)
+    if (!match) continue
+    const key = match[1] as string
+    if (!(KNOWN_ATTRIBUTES as readonly string[]).includes(key)) continue
+    if (!found.has(key)) found.set(key, match[2] as string)
   }
-  if (current.length > 0) regions.push(current)
-  return regions
-}
-
-/**
- * A banner is a line underlined by an ASCII rule — the BMAD house style. The
- * same rule usually closes the banner further down, and that closing rule must
- * not turn the last line of the block into a second heading, so an underline
- * identical to the one already open is treated as the closer.
- */
-function headingUnderline(
-  lines: CommentRegionLine[],
-  index: number,
-  openUnderline: string | null
-): string | null {
-  const line = lines[index]?.text.trim() ?? ''
-  if (line === '' || RULE_LINE.test(line)) return null
-  const next = lines[index + 1]?.text.trim() ?? ''
-  if (!RULE_LINE.test(next)) return null
-  if (openUnderline !== null && next === openUnderline) return null
-  return next
-}
-
-function unwrapBody(lines: CommentRegionLine[]): string {
-  const kept = lines.filter((line) => !RULE_LINE.test(line.text.trim()))
-  while (kept.length > 0 && kept[0]!.text.trim() === '') kept.shift()
-  while (kept.length > 0 && kept[kept.length - 1]!.text.trim() === '') kept.pop()
-  return kept.map((line) => line.text.replace(/\s+$/, '')).join('\n')
-}
-
-function looksLikeMetadata(lines: CommentRegionLine[]): boolean {
-  const meaningful = lines.filter((line) => line.text.trim() !== '')
-  if (meaningful.length === 0) return false
-  return meaningful.every((line) => {
-    const trimmed = line.text.trim()
-    // Continuation lines of a wrapped value are indented, not `key: value`.
-    if (/^\s/.test(line.text) && !/^[a-z_]+\s*:/i.test(trimmed)) return true
-    const match = /^([a-z_]+)\s*:/i.exec(trimmed)
-    return match !== null && (METADATA_KEYS as readonly string[]).includes(match[1]!.toLowerCase())
-  })
-}
-
-function looksLikeDefinitions(title: string, body: string): boolean {
-  if (GENERIC_TITLES.some((pattern) => pattern.test(title.trim()))) return true
-  const lines = body.split('\n').filter((line) => line.trim() !== '')
-  if (lines.length < 3) return false
-  const definitionLines = lines.filter((line) => DEFINITION_LINE.test(line)).length
-  return definitionLines / lines.length >= 0.5
-}
-
-function detectTone(title: string, body: string): ContextTone {
-  const haystack = `${title}\n${body}`
-  if (PAUSED_SIGNALS.test(haystack)) return 'paused'
-  if (BLOCKED_SIGNALS.test(haystack)) return 'blocked'
-  return 'note'
-}
-
-/**
- * Splits comment regions into titled blocks and classifies each one. A YAML
- * parser drops comments entirely, so this reads the raw text in parallel.
- */
-export function extractCommentBlocks(text: string): SprintStatusComment[] {
-  const blocks: SprintStatusComment[] = []
-  const usedIds = new Set<string>()
-
-  for (const region of collectCommentRegions(text)) {
-    const segments: { titleIndex: number | null; lines: CommentRegionLine[] }[] = []
-    let currentLines: CommentRegionLine[] = []
-    let currentTitle: number | null = null
-    let openUnderline: string | null = null
-
-    for (let index = 0; index < region.length; index += 1) {
-      const underline = headingUnderline(region, index, openUnderline)
-      if (underline !== null) {
-        if (currentLines.length > 0) segments.push({ titleIndex: currentTitle, lines: currentLines })
-        currentLines = [region[index] as CommentRegionLine]
-        currentTitle = 0
-        openUnderline = underline
-        continue
-      }
-      currentLines.push(region[index] as CommentRegionLine)
-    }
-    if (currentLines.length > 0) segments.push({ titleIndex: currentTitle, lines: currentLines })
-
-    for (const segment of segments) {
-      const banner = segment.titleIndex !== null
-      const bannerTitle = banner ? (segment.lines[0]?.text.trim() ?? '') : ''
-      const text_ = unwrapBody(banner ? segment.lines.slice(1) : segment.lines)
-      if (bannerTitle === '' && text_ === '') continue
-
-      // Without a banner, a short opening line still reads as a title; a long
-      // one is a sentence and belongs in the body.
-      const firstLine = text_.split('\n')[0] ?? ''
-      const impliedTitle = !banner && firstLine.length > 0 && firstLine.length <= 72 ? firstLine : ''
-      const title = banner ? bannerTitle : impliedTitle !== '' ? impliedTitle : 'Sprint note'
-      const body = banner || impliedTitle === '' ? text_ : text_.split('\n').slice(1).join('\n').trimStart()
-
-      const kind: CommentBlockKind = looksLikeMetadata(segment.lines)
-        ? 'metadata'
-        : looksLikeDefinitions(title, body)
-          ? 'definitions'
-          : 'context'
-
-      const id = uniqueSlug(slugify(title), usedIds)
-
-      blocks.push({
-        id,
-        title,
-        body,
-        kind,
-        tone: kind === 'context' ? detectTone(title, body) : 'note'
-      })
-    }
-  }
-
-  return blocks
+  return found
 }
 
 /** Coerces a YAML scalar to text without ever stringifying an object. */
@@ -232,9 +78,8 @@ function readScalar(doc: Document.Parsed, key: string): string | undefined {
 }
 
 /**
- * Parses the sprint status file. Structured data comes from the YAML document;
- * comments come from the raw text. Both halves are needed: the YAML is the
- * source of truth for scope, and the comments carry the human context.
+ * Parses the sprint status: the YAML attributes BMAD defines, and the ordered
+ * `development_status` block that alone decides what belongs to the sprint.
  */
 export function parseSprintStatus(text: string, path: string): ParsedSprintStatus {
   // Duplicate keys are reported as a warning below rather than failing the
@@ -248,23 +93,8 @@ export function parseSprintStatus(text: string, path: string): ParsedSprintStatu
   }
 
   const warnings: DashboardWarning[] = []
-  const comments = extractCommentBlocks(text)
-
-  /** Metadata sometimes lives only in the commented header of the file. */
-  const commentMetadata = new Map<string, string>()
-  for (const block of comments) {
-    if (block.kind !== 'metadata') continue
-    for (const line of `${block.title}\n${block.body}`.split('\n')) {
-      const match = /^([a-z_]+)\s*:\s*(.+)$/i.exec(line.trim())
-      if (!match) continue
-      const key = match[1]!.toLowerCase()
-      if (!(METADATA_KEYS as readonly string[]).includes(key)) continue
-      if (!commentMetadata.has(key)) commentMetadata.set(key, match[2]!.trim())
-    }
-  }
-
-  const meta = (key: string): string | undefined =>
-    readScalar(doc, key) ?? commentMetadata.get(key)
+  const commented = readCommentedAttributes(text)
+  const attribute = (key: string): string | undefined => readScalar(doc, key) ?? commented.get(key)
 
   const developmentStatus = doc.get('development_status')
   if (developmentStatus === undefined || developmentStatus === null) {
@@ -311,11 +141,13 @@ export function parseSprintStatus(text: string, path: string): ParsedSprintStatu
   }
 
   if (entries.length === 0) {
-    throw new SprintStatusError(`${path} has an empty \`development_status\`; there is nothing to display.`)
+    throw new SprintStatusError(
+      `${path} has an empty \`development_status\`; there is nothing to display.`
+    )
   }
 
-  const storyLocation = meta('story_location')
-  const planningSource = meta('planning_source')
+  const storyLocation = attribute('story_location')
+  const planningSource = attribute('planning_source')
   if (storyLocation === undefined) {
     warnings.push({
       code: 'missing-story-location',
@@ -328,23 +160,23 @@ export function parseSprintStatus(text: string, path: string): ParsedSprintStatu
   if (planningSource === undefined) {
     warnings.push({
       code: 'missing-planning-source',
-      message: 'No `planning_source` in the sprint status: epic pages are generated without planning content.',
+      message:
+        'No `planning_source` in the sprint status: epic pages are generated without planning content.',
       severity: 'warning',
       path
     })
   }
 
   return {
-    project: meta('project'),
-    projectKey: meta('project_key'),
-    trackingSystem: meta('tracking_system'),
-    generated: meta('generated'),
-    lastUpdated: meta('last_updated'),
-    scope: meta('scope'),
+    project: attribute('project'),
+    projectKey: attribute('project_key'),
+    trackingSystem: attribute('tracking_system'),
+    generated: attribute('generated'),
+    lastUpdated: attribute('last_updated'),
+    scope: attribute('scope'),
     storyLocation,
     planningSource,
     entries,
-    comments,
     warnings
   }
 }
