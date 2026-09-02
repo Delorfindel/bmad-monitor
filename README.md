@@ -194,6 +194,36 @@ If the sprint documentation must not be public, enable the deployment protection
 offers — Vercel Authentication, Password Protection, or Trusted IPs (Project Settings →
 Deployment Protection) — before sharing the URL. This portal has no login of its own by design.
 
+### 7.3 When the build fails
+
+**`<owner>/<repo> is not visible with the configured GITHUB_TOKEN`**
+
+GitHub answers `404`, not `403`, for a private repository the credentials cannot see — it refuses to
+confirm that the repository exists at all. So this almost always means the token, not the name.
+The build lists the checks in order; the two that catch most cases:
+
+- **The token's resource owner must be the organization**, not your personal account. A fine-grained
+  token created under your own account can never reach `acme/…` repositories, however many
+  permissions you tick. Regenerate it with the organization selected as resource owner.
+- **The organization must allow fine-grained tokens, and an owner must approve the request**
+  (Organization settings → Personal access tokens). While a request is pending, the token behaves
+  exactly as if it had no access at all.
+
+**`BMAD_REF is "x", which does not exist`**
+
+The branch, tag or SHA is wrong. The message names the repository's default branch. Note that the
+default branch is often `master` or `main` while the branch you actually want is the integration
+one — the portal is usually more useful pointed at the branch where BMAD artefacts land first.
+
+**`Sprint status not found: … Check BMAD_SPRINT_STATUS`**
+
+The repository and the ref are fine, but that path does not exist *on that ref*. A sprint folder
+that exists on `dev` may not exist yet on `master`.
+
+**`GitHub rate limit reached`**
+
+The build fails with the reset time rather than waiting. Re-run it after that time.
+
 <!-- ------------------------------------------------------------------ -->
 
 ## 8. How the sprint is read

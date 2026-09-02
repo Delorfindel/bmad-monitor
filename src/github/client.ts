@@ -7,6 +7,8 @@ import {
   NotFoundError,
   PermissionError,
   RateLimitError,
+  RefNotFoundError,
+  RepositoryAccessError,
   TransportError
 } from './errors.js'
 import type { ContentSource, SourceRevision } from './types.js'
@@ -74,19 +76,40 @@ export class GithubContentSource implements ContentSource {
       sleep: deps.sleep ?? sleep,
       maxAttempts: deps.maxAttempts ?? 3
     }
-    const sha = await GithubContentSource.resolveRef(config, resolved)
+    // Reachability is checked before the ref, so that "no access" and
+    // "no such branch" cannot be reported as the same 404.
+    const defaultBranch = await GithubContentSource.describeRepository(config, resolved)
+    const sha = await GithubContentSource.resolveRef(config, resolved, defaultBranch)
     resolved.logger.info(`Pinned ${config.repository.full}@${config.ref} to ${sha.slice(0, 7)}`)
     return new GithubContentSource(config, resolved, sha)
   }
 
-  private static async resolveRef(
+  /** Returns the default branch, and proves the token can see the repository. */
+  private static async describeRepository(
     config: GithubSourceConfig,
     deps: Required<GithubClientDeps>
+  ): Promise<string> {
+    const url = `${config.apiUrl}/repos/${config.repository.full}`
+    const response = await requestWithRetry(url, config, deps, 'application/vnd.github+json')
+    if (response.status === 404) throw new RepositoryAccessError(config.repository.full)
+    throwForStatus(response, config, config.repository.full)
+    const body: unknown = await response.json()
+    const branch =
+      typeof body === 'object' && body !== null && 'default_branch' in body
+        ? (body as { default_branch?: unknown }).default_branch
+        : undefined
+    return typeof branch === 'string' ? branch : 'main'
+  }
+
+  private static async resolveRef(
+    config: GithubSourceConfig,
+    deps: Required<GithubClientDeps>,
+    defaultBranch: string
   ): Promise<string> {
     const url = `${config.apiUrl}/repos/${config.repository.full}/commits/${encodeURIComponent(config.ref)}`
     const response = await requestWithRetry(url, config, deps, 'application/vnd.github.sha')
     if (response.status === 404) {
-      throw new NotFoundError(config.repository.full, `ref ${config.ref}`, config.ref)
+      throw new RefNotFoundError(config.repository.full, config.ref, defaultBranch)
     }
     throwForStatus(response, config, `ref ${config.ref}`)
     const sha = (await response.text()).trim()

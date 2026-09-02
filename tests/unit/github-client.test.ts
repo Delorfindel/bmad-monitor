@@ -3,9 +3,10 @@ import type { GithubSourceConfig } from '../../src/config/env'
 import { GithubContentSource } from '../../src/github/client'
 import {
   AuthenticationError,
-  NotFoundError,
   PermissionError,
   RateLimitError,
+  RefNotFoundError,
+  RepositoryAccessError,
   TransportError
 } from '../../src/github/errors'
 
@@ -51,6 +52,22 @@ function recorder(handler: (call: Call) => Response): { fetch: typeof fetch; cal
   return { fetch: fetchLike, calls }
 }
 
+/** `/repos/{owner}/{name}` is the reachability preflight every build starts with. */
+function isRepositoryCall(url: string): boolean {
+  return /\/repos\/acme\/atlas$/.test(url)
+}
+
+const repositoryBody = () =>
+  new Response(JSON.stringify({ default_branch: 'master' }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' }
+  })
+
+/** Answers the preflight, then delegates everything else to `handler`. */
+function reachable(handler: (call: Call) => Response) {
+  return recorder((call) => (isRepositoryCall(call.url) ? repositoryBody() : handler(call)))
+}
+
 const deps = (fetchLike: typeof fetch, maxAttempts = 3) => ({
   fetch: fetchLike as never,
   sleep: async () => {},
@@ -59,7 +76,7 @@ const deps = (fetchLike: typeof fetch, maxAttempts = 3) => ({
 
 describe('GithubContentSource snapshot consistency', () => {
   it('resolves the ref once and pins every later read to that SHA', async () => {
-    const { fetch: fetchLike, calls } = recorder((call) =>
+    const { fetch: fetchLike, calls } = reachable((call) =>
       call.url.includes('/commits/') ? response(SHA) : response('file body')
     )
     const source = await GithubContentSource.create(CONFIG, deps(fetchLike))
@@ -77,7 +94,7 @@ describe('GithubContentSource snapshot consistency', () => {
   })
 
   it('builds blob URLs on the pinned SHA, not on the branch', async () => {
-    const { fetch: fetchLike } = recorder(() => response(SHA))
+    const { fetch: fetchLike } = reachable(() => response(SHA))
     const source = await GithubContentSource.create(CONFIG, deps(fetchLike))
     expect(source.fileUrl('a/b c.md')).toBe(
       `https://github.com/acme/atlas/blob/${SHA}/a/b%20c.md`
@@ -85,7 +102,7 @@ describe('GithubContentSource snapshot consistency', () => {
   })
 
   it('sends the token as a bearer header and never in the URL', async () => {
-    const { fetch: fetchLike, calls } = recorder((call) =>
+    const { fetch: fetchLike, calls } = reachable((call) =>
       call.url.includes('/commits/') ? response(SHA) : response('x')
     )
     const source = await GithubContentSource.create(CONFIG, deps(fetchLike))
@@ -95,7 +112,7 @@ describe('GithubContentSource snapshot consistency', () => {
   })
 
   it('refuses a path that escapes the repository', async () => {
-    const { fetch: fetchLike } = recorder(() => response(SHA))
+    const { fetch: fetchLike } = reachable(() => response(SHA))
     const source = await GithubContentSource.create(CONFIG, deps(fetchLike))
     await expect(source.readText('../../etc/passwd')).rejects.toThrow(/Rejected path/)
   })
@@ -103,7 +120,7 @@ describe('GithubContentSource snapshot consistency', () => {
 
 describe('GithubContentSource error handling', () => {
   const withCommit = (handler: (call: Call) => Response) =>
-    recorder((call) => (call.url.includes('/commits/') ? response(SHA) : handler(call)))
+    reachable((call) => (call.url.includes('/commits/') ? response(SHA) : handler(call)))
 
   it('returns null for a missing file instead of failing the build', async () => {
     const { fetch: fetchLike } = withCommit(() => response('', { status: 404 }))
@@ -111,9 +128,34 @@ describe('GithubContentSource error handling', () => {
     expect(await source.readText('missing.md')).toBeNull()
   })
 
-  it('reports a missing ref as a not-found error', async () => {
-    const { fetch: fetchLike } = recorder(() => response('', { status: 404 }))
-    await expect(GithubContentSource.create(CONFIG, deps(fetchLike))).rejects.toThrow(NotFoundError)
+  it('separates a branch that does not exist from a repository it cannot see', async () => {
+    const missingRef = reachable(() => response('', { status: 404 }))
+    await expect(GithubContentSource.create(CONFIG, deps(missingRef.fetch))).rejects.toThrow(
+      RefNotFoundError
+    )
+    // The message names the default branch, so the fix is obvious.
+    await expect(GithubContentSource.create(CONFIG, deps(missingRef.fetch))).rejects.toThrow(
+      /default branch is "master"/
+    )
+
+    const unreachable = recorder(() => response('', { status: 404 }))
+    await expect(GithubContentSource.create(CONFIG, deps(unreachable.fetch))).rejects.toThrow(
+      RepositoryAccessError
+    )
+    // GitHub hides a private repository behind a 404, so the message has to
+    // point at the token rather than at the branch.
+    await expect(GithubContentSource.create(CONFIG, deps(unreachable.fetch))).rejects.toThrow(
+      /resource owner is "acme"/
+    )
+  })
+
+  it('checks reachability before it resolves the ref', async () => {
+    const { fetch: fetchLike, calls } = reachable((call) =>
+      call.url.includes('/commits/') ? response(SHA) : response('x')
+    )
+    await GithubContentSource.create(CONFIG, deps(fetchLike))
+    expect(isRepositoryCall(calls[0]?.url ?? '')).toBe(true)
+    expect(calls[1]?.url).toContain('/commits/')
   })
 
   it('reports 401 as an authentication error and does not retry it', async () => {
@@ -162,6 +204,7 @@ describe('GithubContentSource error handling', () => {
   it('retries a network failure and then gives up with a transport error', async () => {
     let attempts = 0
     const fetchLike = (async (url: string) => {
+      if (isRepositoryCall(String(url))) return repositoryBody()
       if (String(url).includes('/commits/')) return response(SHA)
       attempts += 1
       throw new Error('socket hang up')
@@ -180,14 +223,14 @@ describe('GithubContentSource error handling', () => {
   })
 
   it('rejects a commit endpoint that does not answer with a SHA', async () => {
-    const { fetch: fetchLike } = recorder(() => response('not-a-sha'))
+    const { fetch: fetchLike } = reachable(() => response('not-a-sha'))
     await expect(GithubContentSource.create(CONFIG, deps(fetchLike))).rejects.toThrow(TransportError)
   })
 
   it('honours retry-after before a retry', async () => {
     const sleep = vi.fn(async () => {})
     let attempts = 0
-    const { fetch: fetchLike } = recorder((call) => {
+    const { fetch: fetchLike } = reachable((call) => {
       if (call.url.includes('/commits/')) return response(SHA)
       attempts += 1
       return attempts === 1
