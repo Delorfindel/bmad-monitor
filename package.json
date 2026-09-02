@@ -1,0 +1,43 @@
+{
+  "name": "bmad-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Static sprint portal for a single BMAD project: dashboard + epic/story documentation browser.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "sync-content": "tsx src/cli/sync-content.ts",
+    "dev": "npm run sync-content && vitepress dev docs",
+    "build": "npm run sync-content && vitepress build docs",
+    "preview": "vitepress preview docs",
+    "clean": "node -e \"require('node:fs').rmSync('.generated',{recursive:true,force:true})\"",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:watch": "vitest",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-vue": "^10.6.0",
+    "mermaid": "^11.12.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vitest": "^4.0.0",
+    "vue": "^3.5.22",
+    "vue-tsc": "^2.2.0"
+  }
+}

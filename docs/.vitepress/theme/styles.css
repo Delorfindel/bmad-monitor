@@ -1,0 +1,351 @@
+/* ====================================================================== *
+ * Chrome and shared classes. Everything here only applies Noir tokens.
+ * ====================================================================== */
+
+body {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+
+/* --- Navigation bar ---------------------------------------------------- */
+.VPNavBar,
+.VPNavBar.has-sidebar .content-body,
+.VPNavBar .divider,
+.VPLocalNav {
+  background: var(--noir-bg) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.VPNavBar .divider-line {
+  background: transparent !important;
+}
+.VPNavBarTitle .title {
+  font-family: var(--noir-display);
+  font-weight: 600;
+  font-size: var(--noir-t4);
+  letter-spacing: -0.01em;
+  border: 0 !important;
+}
+.VPNavBarMenuLink,
+.VPNavBarMenuGroup .VPFlyout .button {
+  font-family: var(--noir-display);
+  font-size: var(--noir-t3);
+}
+.DocSearch-Button,
+.VPNavBarSearchButton .DocSearch-Button {
+  border-radius: var(--noir-r-pill);
+  background: var(--noir-plane-3);
+}
+
+/* --- Sidebar: a status travels with every entry ------------------------ */
+.VPSidebar {
+  background: var(--noir-bg) !important;
+  padding-top: var(--noir-s6);
+}
+.VPSidebarItem .indicator {
+  display: none !important;
+}
+.VPSidebarItem > .item {
+  border-radius: var(--noir-r-sm);
+  padding-inline: 10px;
+}
+.VPSidebarItem.level-0 > .item > .text,
+.VPSidebarItem.is-link > .item .link .text {
+  font-family: var(--noir-display);
+}
+.VPSidebarItem.level-0 > .item {
+  padding-block: 6px;
+}
+.VPSidebarItem .link:hover .text,
+.VPSidebarItem.is-active > .item > .link > .text {
+  color: var(--noir-ink);
+}
+/* Rule 2: selection is a full pill, never an outline or a side bar. */
+.VPSidebarItem.is-active > .item {
+  background: var(--noir-plane-4);
+}
+.VPSidebarItem.is-link > .item:hover {
+  background: var(--noir-plane-2);
+}
+.VPSidebarItem.level-0 {
+  padding-bottom: var(--noir-s5);
+}
+
+.bm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.bm-nav-title {
+  display: block;
+  font-size: var(--noir-t3);
+  line-height: 1.35;
+}
+.bm-nav-id {
+  display: inline-block;
+  margin-right: 6px;
+  font-weight: 600;
+  color: var(--noir-ink);
+}
+.bm-nav-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--noir-t1);
+  font-weight: 500;
+  color: var(--bm-hue, var(--noir-ink-3));
+}
+.bm-nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bm-hue, var(--noir-ink-3));
+  background-image: var(--bm-texture, none);
+  flex: none;
+}
+
+/* --- Document surface --------------------------------------------------- */
+.VPDoc .content-container {
+  max-width: 792px;
+  padding: var(--noir-s7) var(--noir-s7) var(--noir-s8);
+  border-radius: var(--noir-r-lg);
+  background: var(--noir-plane-1);
+}
+@media (max-width: 767px) {
+  .VPDoc .content-container {
+    padding: var(--noir-s6) var(--noir-s5) var(--noir-s7);
+    border-radius: var(--noir-r);
+  }
+}
+.VPDoc.has-aside .content-container {
+  max-width: 792px;
+}
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4,
+.vp-doc h5,
+.vp-doc h6 {
+  font-family: var(--noir-display);
+  letter-spacing: -0.02em;
+  border-top: 0 !important;
+}
+.vp-doc h1 {
+  font-size: var(--noir-t6);
+  font-weight: 500;
+}
+.vp-doc h2 {
+  margin-top: var(--noir-s8);
+  padding-top: 0;
+  font-size: var(--noir-t5);
+  font-weight: 500;
+}
+.vp-doc h3 {
+  margin-top: var(--noir-s7);
+  font-size: var(--noir-t4);
+  font-weight: 600;
+}
+.vp-doc p,
+.vp-doc li {
+  font-size: var(--noir-t4);
+  line-height: 1.65;
+  letter-spacing: 0;
+}
+.vp-doc table {
+  display: table;
+  width: 100%;
+  border-radius: var(--noir-r-sm);
+  overflow: hidden;
+}
+.vp-doc tr {
+  border: 0;
+  background: transparent;
+}
+.vp-doc th,
+.vp-doc td {
+  border: 0;
+  font-size: var(--noir-t3);
+  padding: 9px 14px;
+}
+.vp-doc th {
+  background: var(--noir-inset);
+  color: var(--noir-ink-3);
+  font-family: var(--noir-display);
+  font-size: var(--noir-t1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+}
+.vp-doc tr:nth-child(even) td {
+  background: var(--noir-plane-2);
+}
+.vp-doc div[class*='language-'] {
+  border-radius: var(--noir-r-sm);
+  background: var(--noir-inset);
+}
+.vp-doc blockquote {
+  border-left: 0;
+  padding: var(--noir-s4) var(--noir-s6);
+  border-radius: var(--noir-r-sm);
+  background: var(--noir-plane-2);
+  color: var(--noir-ink-2);
+}
+.vp-doc hr {
+  border: 0;
+  height: var(--noir-s6);
+}
+.vp-doc .custom-block {
+  border: 0;
+  border-radius: var(--noir-r);
+  font-family: var(--noir-prose);
+}
+.vp-doc .custom-block-title {
+  font-family: var(--noir-display);
+}
+/* Task lists in BMAD stories: the checkbox is the content, not a control. */
+.vp-doc .task-list-item {
+  list-style: none;
+}
+.vp-doc .task-list-item input {
+  margin-right: 8px;
+}
+.vp-doc a {
+  font-weight: 500;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.bm-mermaid {
+  display: flex;
+  justify-content: center;
+  margin: var(--noir-s6) 0;
+  padding: var(--noir-s6);
+  border-radius: var(--noir-r);
+  background: var(--noir-plane-2);
+  overflow-x: auto;
+}
+
+/* --- Outline (right-hand table of contents) ---------------------------- */
+.VPDocAside .outline-marker {
+  background: var(--noir-ink) !important;
+}
+.VPDocAsideOutline .outline-title {
+  font-family: var(--noir-display);
+  font-size: var(--noir-t1);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--noir-ink-4);
+}
+.VPDocAside .content {
+  border-left: 0 !important;
+}
+
+/* --- Dashboard page ----------------------------------------------------- */
+.VPPage {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--noir-s7) var(--noir-s6) var(--noir-s8);
+}
+@media (max-width: 767px) {
+  .VPPage {
+    padding: var(--noir-s6) var(--noir-s5) var(--noir-s7);
+  }
+}
+
+/* --- Shared pieces ------------------------------------------------------ */
+.bm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: var(--noir-r-pill);
+  background-color: var(--bm-fill, var(--noir-plane-3));
+  background-image: var(--bm-texture, none);
+  color: var(--bm-hue, var(--noir-ink-2));
+  font-family: var(--noir-display);
+  font-size: var(--noir-t1);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bm-badge--plain {
+  background: var(--noir-plane-3);
+  color: var(--noir-ink-2);
+  font-weight: 500;
+}
+.bm-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--bm-hue, var(--noir-ink-3));
+  background-image: var(--bm-texture, none);
+  flex: none;
+}
+.bm-eyebrow {
+  font-family: var(--noir-display);
+  font-size: var(--noir-t1);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--noir-ink-4);
+}
+.bm-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.bm-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--noir-r-pill);
+  background: var(--noir-plane-3);
+  color: var(--noir-ink-2);
+  font-family: var(--noir-display);
+  font-size: var(--noir-t2);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.bm-link:hover {
+  background: var(--noir-plane-4);
+  color: var(--noir-ink);
+}
+
+/* --- Story checklists --------------------------------------------------- */
+.vp-doc li.bm-task {
+  list-style: none;
+}
+.vp-doc li.bm-task > p:first-child {
+  text-indent: -26px;
+  padding-left: 26px;
+}
+.bm-check {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  margin-right: 9px;
+  vertical-align: -3px;
+  border-radius: var(--noir-r-xs);
+  background-color: var(--noir-plane-3);
+  background-image: var(--noir-hachure);
+  color: transparent;
+  font-size: 11px;
+  line-height: 1;
+  text-indent: 0;
+}
+.bm-check.is-done {
+  background-color: var(--noir-accent);
+  background-image: none;
+  color: var(--noir-ink-invert);
+  font-weight: 700;
+}

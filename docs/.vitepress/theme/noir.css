@@ -1,0 +1,198 @@
+/* ====================================================================== *
+ * Noir — the token layer, adapted to VitePress.
+ *
+ * One rule holds the system together: nothing is separated by a line. Two
+ * things are separated because one is laid on the other — a lighter plane, a
+ * wide radius, a shadow, emptiness. There is no 1px border in this sheet, and
+ * there must not be one in what is written on top of it.
+ *
+ * VitePress switches themes with a `dark` class on <html>, and follows the OS
+ * on its own. So the light values live on `:root` and the dark ones on
+ * `html.dark` — never only inside a media query, which is the classic bug that
+ * renders one theme's text on the other theme's ground.
+ * ====================================================================== */
+
+:root {
+  /* The planes: six steps up from the floor, plus a hollow. Each nested
+     object rises one step; two nested objects never land on the same value. */
+  --noir-bg: #e9e9ec;
+  --noir-plane-1: #f8f8fa;
+  --noir-plane-2: #eeeef1;
+  --noir-plane-3: #ececf0;
+  --noir-plane-4: #dcdce3;
+  --noir-plane-5: #c9c9d2;
+  --noir-inset: #e4e4e8;
+
+  --noir-ink: #16181c;
+  --noir-ink-2: #52525c;
+  --noir-ink-3: #5e5e68;
+  --noir-ink-4: #6a6a74;
+  --noir-ink-invert: #ffffff;
+
+  /* Four hues, one per role. If a colour appears, it says something. */
+  --noir-accent: #136240;
+  --noir-danger: #b31f26;
+  --noir-info: #1a54ba;
+  --noir-warn: #85500a;
+
+  --noir-r-xs: 5px;
+  --noir-r-sm: 10px;
+  --noir-r: 18px;
+  --noir-r-lg: 28px;
+  --noir-r-pill: 999px;
+
+  --noir-s1: 2px;
+  --noir-s2: 4px;
+  --noir-s3: 6px;
+  --noir-s4: 10px;
+  --noir-s5: 14px;
+  --noir-s6: 20px;
+  --noir-s7: 28px;
+  --noir-s8: 40px;
+
+  --noir-shadow: 0 1px 3px rgba(16, 18, 28, 0.1);
+  --noir-shadow-lg: 0 24px 60px rgba(16, 18, 28, 0.22);
+
+  --noir-display: 'Poppins', 'Avenir Next', -apple-system, BlinkMacSystemFont, sans-serif;
+  --noir-prose:
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  --noir-t1: 11px;
+  --noir-t2: 12px;
+  --noir-t3: 13px;
+  --noir-t4: 15px;
+  --noir-t5: 20px;
+  --noir-t6: 28px;
+  --noir-t7: 34px;
+  --noir-t8: 52px;
+
+  /* Hatching says "not yet real". It is a texture, so what it marks never
+     depends on colour alone. */
+  --noir-hachure: repeating-linear-gradient(
+    135deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--noir-ink) 10%, transparent) 5px 6px
+  );
+}
+
+html.dark {
+  --noir-bg: #050506;
+  --noir-plane-1: #101012;
+  --noir-plane-2: #17171a;
+  --noir-plane-3: #242429;
+  --noir-plane-4: #2c2c32;
+  --noir-plane-5: #3c3c44;
+  --noir-inset: #0b0b0d;
+
+  --noir-ink: #f4f4f6;
+  --noir-ink-2: #a3a3ae;
+  --noir-ink-3: #7c7c88;
+  --noir-ink-4: #5e5e69;
+  --noir-ink-invert: #050506;
+
+  --noir-accent: #4ade9e;
+  --noir-danger: #f2604c;
+  --noir-info: #7fa8ff;
+  --noir-warn: #f0b23b;
+
+  --noir-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --noir-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+
+/* ---------------------------------------------------------------------- *
+ * The five BMAD statuses. Each carries a hue, a fill and — in every place it
+ * is shown — a word, so status is never conveyed by colour alone. `backlog`
+ * is hatched, because a story nobody has started is the definition of "not
+ * yet real".
+ * ---------------------------------------------------------------------- */
+[data-status='done'] {
+  --bm-hue: var(--noir-accent);
+  --bm-fill: color-mix(in srgb, var(--noir-accent) 20%, var(--noir-plane-2));
+}
+[data-status='review'] {
+  --bm-hue: var(--noir-info);
+  --bm-fill: color-mix(in srgb, var(--noir-info) 20%, var(--noir-plane-2));
+}
+[data-status='in-progress'] {
+  --bm-hue: var(--noir-warn);
+  --bm-fill: color-mix(in srgb, var(--noir-warn) 22%, var(--noir-plane-2));
+}
+[data-status='ready-for-dev'] {
+  --bm-hue: var(--noir-ink-2);
+  --bm-fill: var(--noir-plane-4);
+}
+[data-status='backlog'] {
+  --bm-hue: var(--noir-ink-3);
+  --bm-fill: var(--noir-plane-3);
+  --bm-texture: var(--noir-hachure);
+}
+
+/* ---------------------------------------------------------------------- *
+ * VitePress variables, pointed at Noir. Dividers become transparent: the
+ * default theme separates with rules, and this system separates with planes.
+ * ---------------------------------------------------------------------- */
+:root {
+  --vp-c-bg: var(--noir-bg);
+  --vp-c-bg-alt: var(--noir-bg);
+  --vp-c-bg-soft: var(--noir-plane-2);
+  --vp-c-bg-elv: var(--noir-plane-2);
+  --vp-c-bg-mute: var(--noir-plane-3);
+
+  --vp-c-text-1: var(--noir-ink);
+  --vp-c-text-2: var(--noir-ink-2);
+  --vp-c-text-3: var(--noir-ink-3);
+
+  --vp-c-divider: transparent;
+  --vp-c-border: transparent;
+  --vp-c-gutter: transparent;
+
+  --vp-c-brand-1: var(--noir-accent);
+  --vp-c-brand-2: var(--noir-accent);
+  --vp-c-brand-3: var(--noir-accent);
+  --vp-c-brand-soft: color-mix(in srgb, var(--noir-accent) 16%, transparent);
+
+  --vp-c-default-soft: var(--noir-plane-3);
+  --vp-c-tip-1: var(--noir-accent);
+  --vp-c-tip-soft: color-mix(in srgb, var(--noir-accent) 14%, var(--noir-plane-1));
+  --vp-c-warning-1: var(--noir-warn);
+  --vp-c-warning-soft: color-mix(in srgb, var(--noir-warn) 14%, var(--noir-plane-1));
+  --vp-c-danger-1: var(--noir-danger);
+  --vp-c-danger-soft: color-mix(in srgb, var(--noir-danger) 14%, var(--noir-plane-1));
+
+  /* Plus Jakarta Sans carries running text; Poppins is put back on every
+     heading and every piece of chrome below. A monospace face is kept for
+     code only, where column alignment is the point. */
+  --vp-font-family-base: var(--noir-prose);
+
+  --vp-code-block-bg: var(--noir-inset);
+  --vp-code-bg: color-mix(in srgb, var(--noir-ink) 8%, transparent);
+  --vp-code-color: var(--noir-ink-2);
+
+  --vp-sidebar-bg-color: var(--noir-bg);
+  --vp-nav-bg-color: var(--noir-bg);
+  --vp-layout-max-width: 1440px;
+  --vp-nav-height: 60px;
+}
+
+html {
+  background: var(--noir-bg);
+}
+
+/* The focus ring is the one exception to "nothing is separated by a line":
+   it is an accessibility affordance, not a separation. */
+:focus-visible {
+  outline: 2px solid var(--noir-ink);
+  outline-offset: 2px;
+  border-radius: var(--noir-r-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
