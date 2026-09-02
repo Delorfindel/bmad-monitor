@@ -33,7 +33,7 @@ import { mapWithConcurrency } from '../shared/concurrency.js'
 import { silentLogger, type Logger } from '../shared/logger.js'
 import { joinRepoPath, normalizeRepoPath } from '../shared/paths.js'
 import { slugify, uniqueSlug } from '../shared/text.js'
-import { contextRoute, epicRoute, storyRoute } from './routes.js'
+import { createRouteBuilder, type RouteBuilder } from './routes.js'
 
 export interface StoryDocument {
   story: SprintStory
@@ -140,7 +140,13 @@ export async function collectSprint(
   const storyLocation = safePath(parsed.storyLocation, 'story_location', config.sprintStatusPath, warnings)
   const planningSource = safePath(parsed.planningSource, 'planning_source', config.sprintStatusPath, warnings)
 
-  const { epics, stories, retrospectives } = buildSkeleton(parsed, config.sprintStatusPath, warnings)
+  const routes = createRouteBuilder(config.cleanUrls)
+  const { epics, stories, retrospectives } = buildSkeleton(
+    parsed,
+    config.sprintStatusPath,
+    warnings,
+    routes
+  )
 
   // --- Story files -------------------------------------------------------
   const storyDocuments = await mapWithConcurrency(stories, config.concurrency, (story) =>
@@ -279,7 +285,7 @@ export async function collectSprint(
       path: documentPath,
       slug,
       title: titleFromMarkdown(text) ?? titleFromPath(documentPath),
-      route: contextRoute(slug),
+      route: routes.context(slug),
       markdown: stripFrontmatter(text).body,
       externalUrl: source.fileUrl(documentPath)
     })
@@ -415,7 +421,8 @@ interface Skeleton {
 export function buildSkeleton(
   parsed: ParsedSprintStatus,
   sprintStatusPath: string,
-  warnings: DashboardWarning[]
+  warnings: DashboardWarning[],
+  routes: RouteBuilder
 ): Skeleton {
   const epicsByNumber = new Map<number, SprintEpic>()
   const epics: SprintEpic[] = []
@@ -434,7 +441,7 @@ export function buildSkeleton(
       stories: [],
       progress: emptyStatusCounts(),
       completion: 0,
-      route: epicRoute(number),
+      route: routes.epic(number),
       planningMissing: false
     }
     epicsByNumber.set(number, epic)
@@ -503,7 +510,7 @@ export function buildSkeleton(
       title: titleFromStoryKey(classification.slug),
       status: status ?? 'backlog',
       rawStatus: entry.rawStatus,
-      route: storyRoute(entry.key),
+      route: routes.story(entry.key),
       references: [],
       missingSource: true
     }

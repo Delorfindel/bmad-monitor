@@ -55,6 +55,12 @@ describe('loadConfig in GitHub mode', () => {
     }
   })
 
+  it('keeps clean URLs unless the host is told not to', () => {
+    expect(loadConfig({ ...GITHUB_ENV }).cleanUrls).toBe(true)
+    expect(loadConfig({ ...GITHUB_ENV, BMAD_CLEAN_URLS: 'false' }).cleanUrls).toBe(false)
+    expect(loadConfig({ ...GITHUB_ENV, BMAD_CLEAN_URLS: 'true' }).cleanUrls).toBe(true)
+  })
+
   it('validates optional numeric tuning', () => {
     expect(() => loadConfig({ ...GITHUB_ENV, BMAD_CONCURRENCY: '0' })).toThrow(/positive integer/)
     expect(loadConfig({ ...GITHUB_ENV, BMAD_CONCURRENCY: '3' }).concurrency).toBe(3)

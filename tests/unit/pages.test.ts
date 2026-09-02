@@ -150,6 +150,22 @@ describe('generateSite', () => {
     expect(await findSecrets(config.outputDir, 'github_pat_11SECRET0123456789')).toEqual([])
   })
 
+  it('carries the page extension in every route when the host needs it', async () => {
+    const config = testConfig({ sprintStatusPath: STATUS_PATH, outputDir, cleanUrls: false })
+    const source = new FakeContentSource(FILES, { commitSha: SHA })
+    const collected = await collectSprint(config, source)
+    const result = await generateSite(collected, config, source)
+
+    expect(collected.data.epics[0]?.route).toBe('/epics/2.html')
+    expect(collected.data.epics[0]?.stories[0]?.route).toBe('/stories/2-1-alpha.html')
+    expect(collected.linkedDocuments[0]?.route).toBe('/context/blocked.html')
+    // Links inside the documents follow the same shape.
+    const page = await fs.readFile(path.join(result.siteDir, 'stories/2-1-alpha.md'), 'utf8')
+    expect(page).toContain('[the block note](/context/blocked.html#waiting)')
+    // The page files themselves are unaffected.
+    expect(result.pages).toContain('stories/2-1-alpha.md')
+  })
+
   it('regenerates the output directory from scratch', async () => {
     await fs.writeFile(path.join(outputDir, 'stale.md'), 'left over')
     const { config } = await build()

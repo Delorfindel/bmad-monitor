@@ -39,6 +39,8 @@ export interface AppConfig {
   /** Absolute path of the regenerable output directory. */
   outputDir: string
   siteTitle?: string
+  /** `false` when the host does not serve `/a/b` from `a/b.html`. */
+  cleanUrls: boolean
   maxLinkedDocuments: number
   maxAssets: number
   maxAssetBytes: number
@@ -125,6 +127,7 @@ export function loadConfig(env: EnvRecord = process.env, cwd: string = process.c
     sprintStatusPath,
     outputDir: path.resolve(cwd, env.BMAD_OUTPUT_DIR?.trim() || '.generated'),
     siteTitle: env.BMAD_SITE_TITLE?.trim() || undefined,
+    cleanUrls: env.BMAD_CLEAN_URLS?.trim().toLowerCase() !== 'false',
     maxLinkedDocuments: positiveInt(env, 'BMAD_MAX_LINKED_DOCUMENTS', 40),
     maxAssets: positiveInt(env, 'BMAD_MAX_ASSETS', 60),
     maxAssetBytes: positiveInt(env, 'BMAD_MAX_ASSET_BYTES', 5 * 1024 * 1024),

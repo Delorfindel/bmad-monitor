@@ -1,0 +1,24 @@
+# AWS Amplify Hosting build specification.
+#
+# Amplify does not read vercel.json, and it does not serve `/epics/41` from
+# `epics/41.html` on its own, so this deployment generates routes that carry the
+# extension. See BMAD_CLEAN_URLS in the README.
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # The default image ships several Node versions; the build needs >= 20.
+        - nvm use 20 || nvm install 20
+        - node --version
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: docs/.vitepress/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*

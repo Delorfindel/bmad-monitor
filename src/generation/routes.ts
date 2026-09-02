@@ -4,16 +4,27 @@ import { createHash } from 'node:crypto'
 
 export const DASHBOARD_ROUTE = '/'
 
-export function epicRoute(epicNumber: number): string {
-  return `/epics/${epicNumber}`
+/**
+ * Builds the site's routes. Their shape depends on one thing: whether the host
+ * serves `/epics/41` from `epics/41.html` on its own.
+ *
+ * Vercel does, with `cleanUrls`. Most static hosts do not, and there every
+ * extensionless link is a 404 on first load — so the extension goes into the
+ * routes themselves rather than being papered over with a rewrite rule.
+ */
+export interface RouteBuilder {
+  epic(epicNumber: number): string
+  story(storyKey: string): string
+  context(slug: string): string
 }
 
-export function storyRoute(storyKey: string): string {
-  return `/stories/${storyKey}`
-}
-
-export function contextRoute(slug: string): string {
-  return `/context/${slug}`
+export function createRouteBuilder(cleanUrls: boolean): RouteBuilder {
+  const suffix = cleanUrls ? '' : '.html'
+  return {
+    epic: (epicNumber) => `/epics/${epicNumber}${suffix}`,
+    story: (storyKey) => `/stories/${storyKey}${suffix}`,
+    context: (slug) => `/context/${slug}${suffix}`
+  }
 }
 
 export function epicPageFile(epicNumber: number): string {

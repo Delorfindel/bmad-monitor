@@ -44,7 +44,8 @@ export default withMermaid(
     title,
     description: sprint.scope ?? `BMAD sprint portal for ${sprint.project}`,
     lang: 'en',
-    cleanUrls: true,
+    // Must match the routes the sync step generated.
+    cleanUrls: process.env.BMAD_CLEAN_URLS?.trim().toLowerCase() !== 'false',
     lastUpdated: false,
     // Internal links are generated from the sprint model, so a dead one is a bug.
     ignoreDeadLinks: false,

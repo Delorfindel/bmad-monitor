@@ -58,6 +58,20 @@ Two things worth knowing:
   published story. Turn on Vercel's Deployment Protection before sharing it — this portal has no
   login of its own.
 
+### AWS Amplify, S3, or any other static host
+
+`amplify.yml` is in the repo; Amplify picks it up on its own. Three things differ from Vercel:
+
+- **Set `BMAD_CLEAN_URLS=false`.** Vercel serves `/epics/41` from `epics/41.html`; most hosts do not,
+  and every internal link would 404 on first load. With this off, the routes carry the extension and
+  the site works on a host with no rewrite rules at all.
+- **Pin Node to 20 or later.** `amplify.yml` does it in `preBuild`; other hosts have their own knob.
+- **Use the host's own equivalents** for the rest: Amplify's *Incoming webhooks* replace Vercel's
+  Deploy Hooks, and its *Access control* (basic auth per branch) replaces Deployment Protection.
+
+Environment variables go in the Amplify console under App settings → Environment variables. The
+build command and output directory come from `amplify.yml`, so leave them alone in the console.
+
 ## Configuration
 
 | Variable | Default | |
@@ -69,6 +83,7 @@ Two things worth knowing:
 | `BMAD_LOCAL_SOURCE` | — | Read from a local directory instead of GitHub. Takes precedence. |
 | `GITHUB_API_URL` | `https://api.github.com` | For a GitHub Enterprise host. |
 | `BMAD_SITE_TITLE` | `<project> — <sprint>` | Overrides the site title. |
+| `BMAD_CLEAN_URLS` | `true` | Set to `false` on a host that does not serve `/a/b` from `a/b.html`. |
 
 A few more knobs — `BMAD_OUTPUT_DIR`, `BMAD_CONCURRENCY`, `BMAD_MAX_LINKED_DOCUMENTS`,
 `BMAD_MAX_ASSETS`, `BMAD_MAX_ASSET_BYTES`, `BMAD_LOG_LEVEL` — are documented in `.env.example`.
