@@ -30,10 +30,11 @@ const title =
   process.env.BMAD_SITE_TITLE?.trim() ||
   (sprint.sprintLabel ? `${sprint.project} — ${sprint.sprintLabel}` : sprint.project)
 
-const nav: DefaultTheme.NavItem[] = [{ text: 'Dashboard', link: '/' }]
-if (sprint.sprintStatusUrl) {
-  nav.push({ text: 'Sprint status on GitHub', link: sprint.sprintStatusUrl })
-}
+// The site title already links to the dashboard, so the nav only carries what
+// leads somewhere else.
+const nav: DefaultTheme.NavItem[] = sprint.sprintStatusUrl
+  ? [{ text: 'Sprint status on GitHub', link: sprint.sprintStatusUrl }]
+  : []
 
 export default withMermaid(
   defineConfigWithTheme<BmadThemeConfig>({
@@ -68,7 +69,7 @@ export default withMermaid(
       // Consumed by the theme components; contains no credential.
       sprint,
       sequence: navigation.sequence,
-      nav,
+      nav: nav.length > 0 ? nav : undefined,
       sidebar: navigation.sidebar,
       outline: { level: [2, 3], label: 'On this page' },
       search: { provider: 'local' },

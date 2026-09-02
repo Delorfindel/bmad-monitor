@@ -43,10 +43,11 @@ const externalLabel = computed(() =>
         No story file at this revision
       </span>
       <span class="bm-doc-spacer" />
+      <!-- The first breadcrumb already leads to the dashboard; the footer
+           carries the way back for readers who scrolled past this row. -->
       <a v-if="externalUrl" class="bm-link" :href="externalUrl" rel="noreferrer">
         {{ externalLabel }}
       </a>
-      <a class="bm-link" href="/">Back to dashboard</a>
     </div>
   </header>
 </template>
